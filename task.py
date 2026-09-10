@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from sklearn.preprocessing import StandardScaler
 
 np.random.seed(42)
 
@@ -36,3 +37,24 @@ df['mode'] = df['mode'].fillna(mode_val)
 print(f"Filled 'mode' skips with mode: {mode_val}")
 
 print("\nSkipped values for each column (after):\n", df.isnull().sum().sum())
+
+
+#=================================================================
+
+features_for_normalization = [ # point 5 - Z-normalization
+    'danceability', 'energy', 'loudness', 'speechiness', 
+    'acousticness', 'instrumentalness', 'liveness', 'valence', 'tempo'
+]
+
+cols_to_scale = [col for col in features_for_normalization if col in df.columns]
+
+if cols_to_scale:
+    scaler = StandardScaler()
+    
+    df[cols_to_scale] = scaler.fit_transform(df[cols_to_scale])
+    
+    print("Normalization done for columns:", cols_to_scale)
+    print("\nExample of 5 normalized rows:\n")
+    print(df[cols_to_scale].head())
+else:
+    print("No columns for normalization found in dataset")
