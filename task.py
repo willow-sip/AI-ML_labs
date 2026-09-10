@@ -71,8 +71,8 @@ class_counts = df_final['danceability_high'].value_counts(normalize=True)
 print(f"Spreading of destination class:\n{class_counts}\n")
 
 X_cls = df_final.drop(columns=['danceability', 'danceability_high'])
+X_cls = X_cls.select_dtypes(include=[np.number])
 y_cls = df_final['danceability_high']
-
 
 X_train_cls, X_test_cls, y_train_cls, y_test_cls = train_test_split(
     X_cls, y_cls, test_size=0.4, random_state=42
@@ -80,9 +80,19 @@ X_train_cls, X_test_cls, y_train_cls, y_test_cls = train_test_split(
 X_test_cls, X_val_cls, y_test_cls, y_val_cls = train_test_split(
     X_test_cls, y_test_cls, test_size=0.4, random_state=42
 )
+# scaled for better model results
+scaler = StandardScaler()
+X_train_cls = scaler.fit_transform(X_train_cls)
+X_test_cls = scaler.transform(X_test_cls)
+X_val_cls = scaler.transform(X_val_cls)
 
 # point 4
 logreg = LogisticRegression(max_iter=1000)
 logreg.fit(X_train_cls, y_train_cls)
 
 y_pred_cls = logreg.predict(X_test_cls)
+
+# point 5
+print(f"Accuracy: {accuracy_score(y_test_cls, y_pred_cls):.4f}\n")
+print("Classification report:\n", classification_report(y_test_cls, y_pred_cls))
+print("Confusion matrix:\n", confusion_matrix(y_test_cls, y_pred_cls))
