@@ -24,3 +24,15 @@ df.loc[mask_danceability, 'danceability'] = np.nan
 df.loc[mask_mode, 'mode'] = np.nan
 
 print("\n(NEW)Skipped values for each column (before):\n", df.isnull().sum())
+
+#=================================================================
+
+median_val = df['danceability'].median() # point 4 - filling with mediane
+df['danceability'] = df['danceability'].fillna(median_val)
+print(f"Filled 'danceability' skips with mediane: {median_val}")
+
+mode_val = df['mode'].mode()[0] # point 4 - filling with mode
+df['mode'] = df['mode'].fillna(mode_val)
+print(f"Filled 'mode' skips with mode: {mode_val}")
+
+print("\nSkipped values for each column (after):\n", df.isnull().sum().sum())
