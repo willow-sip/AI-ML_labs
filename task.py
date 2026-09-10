@@ -1,12 +1,17 @@
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression, Ridge
+from sklearn.linear_model import LinearRegression, LogisticRegression, Ridge
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import (
     mean_squared_error, 
     root_mean_squared_error, 
-    mean_absolute_error
+    mean_absolute_error,
+    accuracy_score, 
+    confusion_matrix, 
+    classification_report
 )
 
 np.random.seed(42)
@@ -55,3 +60,29 @@ ridge_model.fit(X_train_reg, y_train_reg)
 y_pred_ridge = ridge_model.predict(X_test_reg)
 rmse_ridge = root_mean_squared_error(y_test_reg, y_pred_ridge)
 print(f"\nRoot mean squared error with ridge (L2) regulation: {rmse_ridge:.4f}\n")
+
+# ========================================
+
+print("Classification task solving\n")
+
+# creating binary class
+df_final['danceability_high'] = (df_final['danceability'] > 0).astype(int)
+class_counts = df_final['danceability_high'].value_counts(normalize=True)
+print(f"Spreading of destination class:\n{class_counts}\n")
+
+X_cls = df_final.drop(columns=['danceability', 'danceability_high'])
+y_cls = df_final['danceability_high']
+
+
+X_train_cls, X_test_cls, y_train_cls, y_test_cls = train_test_split(
+    X_cls, y_cls, test_size=0.4, random_state=42
+)
+X_test_cls, X_val_cls, y_test_cls, y_val_cls = train_test_split(
+    X_test_cls, y_test_cls, test_size=0.4, random_state=42
+)
+
+# point 4
+logreg = LogisticRegression(max_iter=1000)
+logreg.fit(X_train_cls, y_train_cls)
+
+y_pred_cls = logreg.predict(X_test_cls)
