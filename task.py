@@ -58,3 +58,33 @@ if cols_to_scale:
     print(df[cols_to_scale].head())
 else:
     print("No columns for normalization found in dataset")
+   
+#=================================================================
+
+# point 6
+categorical_cols_to_encode = ['mode', 'key', 'time_signature']
+cols_to_encode = [col for col in categorical_cols_to_encode if col in df.columns]
+
+if cols_to_encode:
+    df_encoded = pd.get_dummies(df, columns=cols_to_encode, drop_first=True)
+    
+    print("\nCategorial data formated, new binary columns created:\n")
+    print([col for col in df_encoded.columns if col not in df.columns])
+else:
+    df_encoded = df.copy()
+    print("\nCategorial data to encoe not found")
+
+# making the view more convenient
+cols_to_drop = ['track_id', 'track_name', 'artist_name']
+cols_to_drop = [col for col in cols_to_drop if col in df_encoded.columns]
+
+if cols_to_drop:
+    df_final = df_encoded.drop(columns=cols_to_drop)
+    print(f"\nDeleted text columns with little info: {cols_to_drop}")
+else:
+    df_final = df_encoded
+
+print("\nFinal dataset view:\n", df_final.head())
+print(f"\nFinal dataset size: {df_final.shape[0]} rows and {df_final.shape[1]} columns")
+
+df_final.to_csv("processed_spotify_data.csv", index=False)
