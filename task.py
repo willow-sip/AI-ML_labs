@@ -1,98 +1,103 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression, LogisticRegression, Ridge
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import (
-    mean_squared_error, 
-    root_mean_squared_error, 
-    mean_absolute_error,
-    accuracy_score, 
-    confusion_matrix, 
-    classification_report
-)
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.metrics import accuracy_score, classification_report, roc_curve, auc
+from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 
 np.random.seed(42)
 
-df_final = pd.read_csv("processed_spotify_data.csv")
+df = pd.read_csv('processed_spotify_data.csv')
 
-print("Regression task solving\n")
+features = ['acousticness', 'danceability', 'energy', 'instrumentalness', 
+            'liveness', 'loudness', 'speechiness', 'valence', 'tempo', 'duration_ms']
+X = df[features]
 
-X_reg = df_final.drop(columns=['energy'])
-X_reg = X_reg.select_dtypes(include=[np.number]) 
-y_reg = df_final['energy']
+# point 2 - regression task (predict singer popularity)
+y_reg = df['Artist_popularity']
 
-# point 1
 X_train_reg, X_test_reg, y_train_reg, y_test_reg = train_test_split(
-    X_reg, y_reg, test_size=0.4, random_state=42
-)
+    X, y_reg, test_size=0.2, random_state=42)
 
-X_test_reg, X_val_reg, y_test_reg, y_val_reg = train_test_split(
-    X_test_reg, y_test_reg, test_size=0.4, random_state=42
-)
+models_reg = {
+    'Linear regression': LinearRegression(),
+    'Decision tree': DecisionTreeRegressor(random_state=42, max_depth=5),
+    'Random forest': RandomForestRegressor(n_estimators=100, random_state=42, max_depth=5)
+}
 
-# scaled for better model results
+print("Regression results (predicting singer popularity):\n")
+
+for name, model in models_reg.items():
+    model.fit(X_train_reg, y_train_reg)
+    y_pred = model.predict(X_test_reg)
+    
+    print(f"Model: {name}\n")
+    print(f"Mean abs error: {mean_absolute_error(y_test_reg, y_pred):.4f}")
+    print(f"Mean sqr error: {mean_squared_error(y_test_reg, y_pred):.4f}")
+    print(f"Determination coeff:   {r2_score(y_test_reg, y_pred):.4f}\n")
+
+# point 3 - classification task (predict mode 1-major, 0-minor)
+y_clf = df['mode_1.0'].astype(int)
+
+X_train_clf, X_test_clf, y_train_clf, y_test_clf = train_test_split(
+    X, y_clf, test_size=0.2, random_state=42)
+
+# scale features for logistic regression
 scaler = StandardScaler()
-X_train_reg = scaler.fit_transform(X_train_reg)
-X_test_reg = scaler.transform(X_test_reg)
-X_val_reg = scaler.transform(X_val_reg)
+X_train_clf_scaled = scaler.fit_transform(X_train_clf)
+X_test_clf_scaled = scaler.transform(X_test_clf)
 
-# point 2
-lr_model = LinearRegression()
-lr_model.fit(X_train_reg, y_train_reg)
+models_clf = {
+    'Logistic regression': LogisticRegression(max_iter=1000, solver='liblinear', random_state=42),
+    'Decision tree': DecisionTreeClassifier(random_state=42, max_depth=5),
+    'Random forest': RandomForestClassifier(n_estimators=100, random_state=42, max_depth=5)
+}
 
-y_pred_reg = lr_model.predict(X_test_reg)
+print("\nClassification results (predicting mode_1.0):\n")
 
-# point 3
-mse = mean_squared_error(y_test_reg, y_pred_reg)
-rmse = root_mean_squared_error(y_test_reg, y_pred_reg)
-mae = mean_absolute_error(y_test_reg, y_pred_reg)
+plt.figure(figsize=(10, 6))
 
-print(f"Statistics for linear regression:")
-print(f"-mean squared error:  {mse:.4f}")
-print(f"-root mean squared error: {rmse:.4f}")
-print(f"-mean absolute error:  {mae:.4f}")
+for name, model in models_clf.items():
+    # use scaled data only for logistic regression
+    if name == 'Logistic regression':
+        model.fit(X_train_clf_scaled, y_train_clf)
+        y_pred = model.predict(X_test_clf_scaled)
+        y_prob = model.predict_proba(X_test_clf_scaled)[:, 1]
+    else:
+        model.fit(X_train_clf, y_train_clf)
+        y_pred = model.predict(X_test_clf)
+        y_prob = model.predict_proba(X_test_clf)[:, 1]
+    
+    print(f"Model: {name}\n")
+    print(f"Accuracy: {accuracy_score(y_test_clf, y_pred):.4f}")
+    print("Classification report:")
+    print(classification_report(y_test_clf, y_pred, zero_division=0))
+    
+    # building ROC-line
+    fpr, tpr, _ = roc_curve(y_test_clf, y_prob)
+    roc_auc = auc(fpr, tpr)
+    plt.plot(fpr, tpr, lw=2, label=f'{name} (AUC = {roc_auc:.2f})')
 
-ridge_model = Ridge(alpha=1.0, solver='sag', max_iter=2000)
-ridge_model.fit(X_train_reg, y_train_reg)
-y_pred_ridge = ridge_model.predict(X_test_reg)
-rmse_ridge = root_mean_squared_error(y_test_reg, y_pred_ridge)
-print(f"\nRoot mean squared error with ridge (L2) regulation: {rmse_ridge:.4f}\n")
+plt.plot([0, 1], [0, 1], color='gray', lw=2, linestyle='--')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False positive rate')
+plt.ylabel('True positive rate')
+plt.title('ROC-line for classification models')
+plt.legend(loc="lower right")
+plt.grid(True, alpha=0.3)
+plt.show()
 
-# ========================================
+# showing instability of trees
 
-print("Classification task solving\n")
+# tree without depth limit
+dt_overfit = DecisionTreeRegressor(random_state=42) 
+dt_overfit.fit(X_train_reg, y_train_reg)
 
-# creating binary class
-df_final['danceability_high'] = (df_final['danceability'] > 0).astype(int)
-class_counts = df_final['danceability_high'].value_counts(normalize=True)
-print(f"Spreading of destination class:\n{class_counts}\n")
-
-X_cls = df_final.drop(columns=['danceability', 'danceability_high'])
-X_cls = X_cls.select_dtypes(include=[np.number])
-y_cls = df_final['danceability_high']
-
-X_train_cls, X_test_cls, y_train_cls, y_test_cls = train_test_split(
-    X_cls, y_cls, test_size=0.4, random_state=42
-)
-X_test_cls, X_val_cls, y_test_cls, y_val_cls = train_test_split(
-    X_test_cls, y_test_cls, test_size=0.4, random_state=42
-)
-# scaled for better model results
-scaler = StandardScaler()
-X_train_cls = scaler.fit_transform(X_train_cls)
-X_test_cls = scaler.transform(X_test_cls)
-X_val_cls = scaler.transform(X_val_cls)
-
-# point 4
-logreg = LogisticRegression(max_iter=1000)
-logreg.fit(X_train_cls, y_train_cls)
-
-y_pred_cls = logreg.predict(X_test_cls)
-
-# point 5
-print(f"Accuracy: {accuracy_score(y_test_cls, y_pred_cls):.4f}\n")
-print("Classification report:\n", classification_report(y_test_cls, y_pred_cls))
-print("Confusion matrix:\n", confusion_matrix(y_test_cls, y_pred_cls))
+print(f"\nTrain R2: {r2_score(y_train_reg, dt_overfit.predict(X_train_reg)):.4f}")
+print(f"Test R2:   {r2_score(y_test_reg, dt_overfit.predict(X_test_reg)):.4f}")
+print("Tree perfectly remembered train but failed on test = unstable")
